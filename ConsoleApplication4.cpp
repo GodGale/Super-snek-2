@@ -23,8 +23,8 @@ S:::::S           N:::::::::::N   N::::::N E:::::E              K:::::K K:::::K
   SS::::::SSSSS   N::::::N N::::N N::::::N E:::::::::::::::E    K:::::::::::K
 	SSS::::::::SS N::::::N  N::::N:::::::N E:::::::::::::::E    K:::::::::::K
 	   SSSSSS::::SN::::::N   N:::::::::::N E::::::EEEEEEEEEE    K::::::K:::::K
-			S:::::N::::::N    N::::::::::N E:::::E              K:::::K K:::::K
-			S:::::N::::::N     N:::::::::N E:::::E       EEEEEKK::::::K  K:::::KKK
+            S:::::N::::::N    N::::::::::N E:::::E              K:::::K K:::::K
+            S:::::N::::::N     N:::::::::N E:::::E       EEEEEKK::::::K  K:::::KKK
 SSSSSSS     S:::::N::::::N      N::::::::EE::::::EEEEEEEE:::::K:::::::K   K::::::K
 S::::::SSSSSS:::::N::::::N       N:::::::E::::::::::::::::::::K:::::::K    K:::::K
 S:::::::::::::::SSN::::::N        N::::::E::::::::::::::::::::K:::::::K    K:::::K
@@ -40,14 +40,21 @@ struct sSnakeSegment //a struct of individual segments.
 
 int main() {
 	//screen buffer
-	wchar_t *screen = new wchar_t[nScreenWidth*nScreenHeight];
+	wchar_t *screen = new wchar_t[nScreenWidth*nScreenHeight];//This line is telling the program to create a new memory space, which is a linear char wchar_t array, nWidth * nHeight in size, AND assign a pointer called screen to it.
+	//in this context, *screen is the cursor position on this long string. You move *screen "cursor" to the desired position, you put a character on that position, and move on to the next. once all the desired characters have been submited, the whole
+	// string is passed on to the render pipeline, which prints it on the console, giving the impression of a screen. then the whole process starts again for the next frame.
 	for (int i = 0; i < nScreenWidth*nScreenHeight; i++) screen[i] = L' ';//for the whole screen, draw empty spaces. Initialization.
-	HANDLE hConsole = CreateConsoleScreenBuffer(GENERIC_READ | GENERIC_WRITE, 0, NULL, CONSOLE_TEXTMODE_BUFFER, NULL);
-	SetConsoleActiveScreenBuffer(hConsole);
+	HANDLE hConsole = CreateConsoleScreenBuffer(GENERIC_READ | GENERIC_WRITE, 0, NULL, CONSOLE_TEXTMODE_BUFFER, NULL);//this is the actual pipeline to the screen; it gets the character stream sumbited by WriteConsoleOutputCharacter() and passes onto
+	//the console. it needs generic read / write as permissions in order to be able to do so. 
+	//WriteConsoleOutputCharacter(hConsole, screen, nScreenWidth*nScreenHeight, { 0,0 }, &dwBytesWritten); <- WriteConsoleOutputCharacter (destination, source, length, start pos, size printed).
+
+
+	SetConsoleActiveScreenBuffer(hConsole); //sets this buffer as the one currently outputting text to the console. you can have many buffers, but only one can be active.
 	CONSOLE_CURSOR_INFO cursor;
 	cursor.bVisible = false;
 	cursor.dwSize = 1;
 	
+
 
 	DWORD dwBytesWritten = 0;
 	int difficulty = 0;
@@ -93,8 +100,9 @@ int main() {
 			auto t0 = chrono::system_clock::now();
 			while ((chrono::system_clock::now() - t0) < 0.025ms);
 			if (uiScreenFrameReference > 500) {
-				for (int i = nScreenWidth * nScreenHeight; (i > ((nScreenWidth * nScreenHeight) - (uiScreenFrameReference-500)) && i >= 0); i--) screen[i] = L'/';//redundancy: both i-- and uiScreenFrameReference subtraction.
-			}
+				for (int i = nScreenWidth * nScreenHeight; (i > ((nScreenWidth * nScreenHeight) - (uiScreenFrameReference-500)) &&  i >= 0); i--) screen[i] = L'/';//the first half of the condition is used to set a backwards sliding stop, that shifts with every frame. 
+				//iterate for every symbol cell. //do if the iterator is at a position on the screen that is higher than the current frame, adjusted for the moment where it starts (500 frames after frame 0).																											//Without it, you're just painting the screen in one go.
+			}	//using a loop to cover for potential synch problems.
 			if (uiScreenFrameReference > 1000) {
 				for (int i = nScreenWidth * nScreenHeight; (i > ((nScreenWidth * nScreenHeight) - (uiScreenFrameReference-1000)) && i >= 0); i--) screen[i] = L'|';
 			}
@@ -119,7 +127,7 @@ int main() {
 				wsprintf(&screen[(nScreenWidth * (23+uiSnekOffset)) + nScreenWidth / 2 - 42], LR"delimiter(         ___\///////////_____\///_____\/////__\///////////////__\///________\///__ )delimiter");
 				wsprintf(&screen[(nScreenWidth * (24+uiSnekOffset)) + nScreenWidth / 2 - 42], LR"delimiter(          __________________________________________________________________/      )delimiter");
 			}
-			if (uiScreenFrameReference > 7200) { //DOES NOT WORK....... something with substrings?
+			if (uiScreenFrameReference > 7200) { //it works. It's trash but it works.
 				int uiSuperOffset = 24 - ((uiScreenFrameReference - 7200) / 20);
 				if (uiSuperOffset < 0) uiSuperOffset = 0;
 
@@ -162,6 +170,11 @@ int main() {
 			WriteConsoleOutputCharacter(hConsole, screen, nScreenWidth*nScreenHeight, { 0,0 }, &dwBytesWritten);
 		}
 		bIntroFinished = true;
+
+
+
+
+
 		list <sSnakeSegment> snake = { //all the segments, each an instance of sSnakeSegment, as seen above. Snake facing left, see below.
 		{60, 15}, //snake.front().x and snake.front().y
 		{61, 15},
@@ -272,7 +285,7 @@ int main() {
 					nStepsRequiredX = 6;
 					nStepsRequiredY = 10;
 				}
-				else if (difficulty == 3) {//hard
+				else if (difficulty == 3) { //hard
 					nStepsRequiredX = 3;
 					nStepsRequiredY = 5;
 				}
@@ -284,7 +297,7 @@ int main() {
 				switch (nSnakeDirection) {
 				case 0: //up
 					if (nMoveStep >= nStepsRequiredY) {
-						snake.push_front({ snake.front().x, snake.front().y - 1 });//insert an element at the top(front) of the list that is at the same X, but one line higher than the
+						snake.push_front({ snake.front().x, snake.front().y - 1 }); //insert an element at the top(front) of the list that is at the same X, but one line higher than the
 						if (bBulletTime) {
 							nBulletTime -= 10;
 						}
@@ -341,7 +354,7 @@ int main() {
 
 			//collision with power-up, spawning power up, de-spawning power-up
 			if (snake.front().x == nItemX && snake.front().y == nItemY) {
-				uiItemPickupEv[0] = uiScreenFrameReference;
+				uiItemPickupEv[0] = (uiScreenFrameReference >= 975) ? uiScreenFrameReference -1000 : uiScreenFrameReference; //beyond frame ref 975, the event would end at 1000 or higher, but that's where the ref loop resets, meaning the even would never end. 
 				uiItemPickupEv[1] = nItemX;
 				uiItemPickupEv[2] = nItemY;
 				bItemEvActive = true;
@@ -380,7 +393,7 @@ int main() {
 			//collision with food, spawning food, add random food drifting.
 			if (snake.front().x == nFoodX && snake.front().y == nFoodY) {
 				nScore++;
-				uiFoodPickupEv[0] = uiScreenFrameReference;
+				uiFoodPickupEv[0] = (uiScreenFrameReference >= 975) ? uiScreenFrameReference - 1000 : uiScreenFrameReference;
 				uiFoodPickupEv[1] = nFoodX;
 				uiFoodPickupEv[2] = nFoodY;
 				bFoodEvActive = true;
@@ -446,9 +459,10 @@ int main() {
 					screen[i + nScreenWidth - 1] = L'X';
 				}
 
-				if (uiScreenFrameReference >= 1000) uiScreenFrameReference = 0;
-				int Lplacement = 0;
+				if (uiScreenFrameReference >= 1000) uiScreenFrameReference -= 1000; //this program has strict frame exclusivity and it would be safe to just use "= 0". But in any case where it is connected to outside code, synch problems might arise wherever 
+																				//you set a relative value (any point >= 1000) to an absolute value (0). It's better to reduce it by the designated range (1000), unless otherwise required.
 
+				int Lplacement = 0;  // HUD scrolling text.
 				if ((uiScreenFrameReference >= 0) && (uiScreenFrameReference < 500)) {
 					Lplacement = (50 - (uiScreenFrameReference / 2));
 					if (Lplacement < 0) Lplacement = 0;
@@ -489,7 +503,7 @@ int main() {
 				//DRAW POWER-UP
 				if(bItemSpawned) screen[nItemY*nScreenWidth + nItemX] = L'&';
 				if (bItemEvActive) {
-					if (uiScreenFrameReference > uiItemPickupEv[0] + 75) bItemEvActive = false;
+					if (uiScreenFrameReference > uiItemPickupEv[0] + 74) bItemEvActive = false;
 					if (uiItemPickupEv[3]=0) wsprintf(&screen[(((uiItemPickupEv[2] - 1) - ((uiScreenFrameReference - uiItemPickupEv[0]) / 25))* nScreenWidth) + uiItemPickupEv[1] - 4], L"Power-Up!");
 					else wsprintf(&screen[(((uiItemPickupEv[2] - 1) - ((uiScreenFrameReference - uiItemPickupEv[0]) / 25))* nScreenWidth) + uiItemPickupEv[1] - 2], L"BONUS!");
 					//Well, that looks pretty. nFoodY minus 1, minus the difference between  the current time and the time stamp, divided by 25. Add nItemX with a small offset to the left. The complicated bit should make the text bubble rise.
@@ -499,7 +513,7 @@ int main() {
 				//PRINT FOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOD!
 				screen[nFoodY*nScreenWidth + nFoodX] = L'%';
 				if (bFoodEvActive){
-					if (uiScreenFrameReference > uiFoodPickupEv[0] + 75) bFoodEvActive = false;
+					if (uiScreenFrameReference > uiFoodPickupEv[0] + 74) bFoodEvActive = false;
 
 					wsprintf(&screen[(((uiFoodPickupEv[2] - 1) - ((uiScreenFrameReference-uiFoodPickupEv[0])/25))* nScreenWidth) + uiFoodPickupEv[1]-1], L"Nom!");
 					//Well, that looks pretty. nFoodY minus 1, minus the difference between  the current time and the time stamp, divided by 25. Add nfoodX with a small offset to the left. The complicated bit should make the text bubble rise.
@@ -583,6 +597,11 @@ int main() {
 	}
 	return 0;
 }
+
+
+//code cemetery, commented notepad.
+
+
 
 /*
 int main() { //PRINT WHICH DIRECTIONAL KEY WAS PRESSED LAST. updates super fast. You can use either if or while to print stuff.
@@ -842,6 +861,8 @@ int main() {//mini-calculator
 	}
 	return 0;
 }*/
+
+
 /*
 int main() { // splits and counts words in a string.
 	string userinput;
